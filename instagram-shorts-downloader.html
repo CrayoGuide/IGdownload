@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Instagram Shorts Downloader</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            color: #333;
+        }
+        h1 {
+            color: #e1306c;
+            text-align: center;
+        }
+        .container {
+            border: 1px solid #dbdbdb;
+            border-radius: 5px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #dbdbdb;
+            border-radius: 3px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #e1306c;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #c13584;
+        }
+        .results {
+            margin-top: 20px;
+        }
+        .video-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #dbdbdb;
+            border-radius: 5px;
+        }
+        video {
+            max-width: 100%;
+            max-height: 400px;
+        }
+        .download-buttons {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+        }
+        .error {
+            color: #e1306c;
+            font-weight: bold;
+        }
+        .loading {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .footer {
+            margin-top: 40px;
+            text-align: center;
+            font-size: 14px;
+            color: #8e8e8e;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Instagram Shorts Downloader</h1>
+    
+    <div class="container">
+        <div class="form-group">
+            <label for="instagram-url">Enter Instagram Short URL:</label>
+            <input type="text" id="instagram-url" placeholder="https://www.instagram.com/reel/..." required>
+        </div>
+        <button id="fetch-button">Fetch Video</button>
+    </div>
+    
+    <div id="loading" class="loading hidden">
+        <p>Processing... please wait</p>
+    </div>
+    
+    <div id="results" class="results hidden">
+        <div id="video-container" class="video-container">
+            <h3>Preview</h3>
+            <video id="video-preview" controls></video>
+            <div class="download-buttons">
+                <button id="download-button">Download Video</button>
+                <button id="copy-button">Copy Video Link</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="error-message" class="error hidden"></div>
+    
+    <div class="footer">
+        <p>This tool is for personal use only. Please respect Instagram's terms of service.</p>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const fetchButton = document.getElementById('fetch-button');
+            const urlInput = document.getElementById('instagram-url');
+            const loadingDiv = document.getElementById('loading');
+            const resultsDiv = document.getElementById('results');
+            const videoPreview = document.getElementById('video-preview');
+            const downloadButton = document.getElementById('download-button');
+            const copyButton = document.getElementById('copy-button');
+            const errorMessage = document.getElementById('error-message');
+            
+            let videoUrl = null;
+            
+            fetchButton.addEventListener('click', async function() {
+                const instagramUrl = urlInput.value.trim();
+                
+                if (!instagramUrl) {
+                    showError('Please enter an Instagram URL');
+                    return;
+                }
+                
+                if (!instagramUrl.includes('instagram.com')) {
+                    showError('Please enter a valid Instagram URL');
+                    return;
+                }
+                
+                showLoading(true);
+                hideError();
+                hideResults();
+                
+                try {
+                    const response = await fetch('/api/fetch-instagram', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ url: instagramUrl })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        videoUrl = data.videoUrl;
+                        videoPreview.src = videoUrl;
+                        showResults();
+                    } else {
+                        showError(data.error || 'Failed to fetch video');
+                    }
+                } catch (error) {
+                    showError('An error occurred while fetching the video');
+                    console.error(error);
+                } finally {
+                    showLoading(false);
+                }
+            });
+            
+            downloadButton.addEventListener('click', function() {
+                if (videoUrl) {
+                    const a = document.createElement('a');
+                    a.href = videoUrl;
+                    a.download = 'instagram-video.mp4';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                }
+            });
+            
+            copyButton.addEventListener('click', function() {
+                if (videoUrl) {
+                    navigator.clipboard.writeText(videoUrl)
+                        .then(() => alert('Video URL copied to clipboard!'))
+                        .catch(err => console.error('Failed to copy URL: ', err));
+                }
+            });
+            
+            function showLoading(show) {
+                loadingDiv.classList.toggle('hidden', !show);
+            }
+            
+            function showResults() {
+                resultsDiv.classList.remove('hidden');
+            }
+            
+            function hideResults() {
+                resultsDiv.classList.add('hidden');
+            }
+            
+            function showError(message) {
+                errorMessage.textContent = message;
+                errorMessage.classList.remove('hidden');
+            }
+            
+            function hideError() {
+                errorMessage.classList.add('hidden');
+            }
+        });
+    </script>
+</body>
+</html>
